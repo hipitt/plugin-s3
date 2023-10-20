@@ -41,7 +41,10 @@ import run.halo.app.infra.utils.JsonUtils;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.awscore.presigner.SdkPresigner;
 import software.amazon.awssdk.core.SdkResponse;
+import software.amazon.awssdk.core.internal.http.loader.DefaultSdkHttpClientBuilder;
 import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.http.SdkHttpClient;
+import software.amazon.awssdk.http.SdkHttpConfigurationOption;
 import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -58,6 +61,7 @@ import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.utils.AttributeMap;
 import software.amazon.awssdk.utils.SdkAutoCloseable;
 
 @Slf4j
@@ -66,6 +70,11 @@ public class S3OsAttachmentHandler implements AttachmentHandler {
 
     public static final String OBJECT_KEY = "s3os.plugin.halo.run/object-key";
     public static final int MULTIPART_MIN_PART_SIZE = 5 * 1024 * 1024;
+    final AttributeMap attributeMap = AttributeMap.builder()
+            .put(SdkHttpConfigurationOption.TRUST_ALL_CERTIFICATES, true)
+            .build();
+    final SdkHttpClient sdkHttpClient = new DefaultSdkHttpClientBuilder().buildWithDefaults(attributeMap);
+
 
     /**
      * Map to store uploading file, used as a lock, key is bucket/objectKey, value is bucket/objectKey.
@@ -214,7 +223,7 @@ public class S3OsAttachmentHandler implements AttachmentHandler {
     }
 
     S3Client buildS3Client(S3OsProperties properties) {
-        return S3Client.builder()
+        return S3Client.builder().httpClient(sdkHttpClient)
             .region(Region.of(properties.getRegion()))
             .endpointOverride(
                 URI.create(properties.getEndpointProtocol() + "://" + properties.getEndpoint()))
